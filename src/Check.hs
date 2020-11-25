@@ -32,10 +32,16 @@ check ::
   Type.Type ->
   Either Error (Local.Ctx, Output.Expr)
 check ctx e t = case (e, t) of
-  (e, Type.Forall x k t) -> error "TODO check forall"
+  (e, Type.Forall x k t) -> do
+    (ctx, e) <- check (Local.push (Local.Const x k) ctx) e t
+    ctx <- return $ Local.splitOnConst ctx x
+    -- do we need to check e and t valid in ctx now?
+    -- maybe we need to apply this sub as we are losing information?
+    Right (ctx, e)
   -- TODO (Abs, Arrow)
   (e, t) -> do
     (ctx, e, t2) <- infer ctx e
+    (ctx, e, t2) <- return $ applyTypeArgs ctx e t2
     ctx <- unify ctx t t2
     Right (ctx, e)
 

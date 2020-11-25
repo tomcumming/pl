@@ -81,3 +81,10 @@ insertBehind ctx v ps = go [] (parts ctx)
 
 push :: CtxPart -> Ctx -> Ctx
 push p ctx = ctx {parts = p : parts ctx}
+
+splitOnConst :: Ctx -> Id -> Ctx
+splitOnConst ctx x = ctx {parts = go (parts ctx)}
+  where
+    go ctx = case ctx of
+      Const y _ : ctx | x == y -> ctx
+      _ : ctx -> go ctx
