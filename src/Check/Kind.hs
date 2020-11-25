@@ -1,22 +1,22 @@
 module Check.Kind where
 
+import qualified Check.Ctx
 import Check.Error (Error)
-import qualified Ctx
-import qualified Data.Map as Map
+import qualified Ctx.Local as Local
 import qualified Kind
 import qualified Type
 
 kind ::
-  Ctx.Ctx ->
+  Local.Ctx ->
   Type.Type ->
   Either Error Kind.Kind
 kind ctx t = case t of
-  Type.Var v -> case Map.lookup v (Ctx.typeVars ctx) of
-    Just (_, k) -> Right k
-    Nothing -> Left $ "Unknown type var: " ++ show v
-  Type.Const x -> case Map.lookup x (Ctx.typeConsts ctx) of
-    Just k -> Right k
-    Nothing -> Left $ "Unknown type const: " ++ x
+  Type.Var v -> do
+    tv <- Check.Ctx.lookupVar ctx v
+    case tv of
+      Local.Unsolved k -> Right k
+      Local.Solved t -> kind ctx t
+  Type.Const x -> Check.Ctx.lookupConst ctx x
   Type.Fn -> Right Kind.fnKind
   Type.Ap c a -> do
     ck <- kind ctx c
