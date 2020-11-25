@@ -78,3 +78,6 @@ insertBehind ctx v ps = go [] (parts ctx)
           let parts = reverse ctxHead ++ TypeVar u tv : ps ++ ctxTail
            in ctx {parts = parts}
       p : ctxTail -> go (p : ctxHead) ctxTail
+
+push :: CtxPart -> Ctx -> Ctx
+push p ctx = ctx {parts = p : parts ctx}
