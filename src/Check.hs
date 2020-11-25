@@ -34,11 +34,24 @@ check ::
 check ctx e t = case (e, t) of
   (e, Type.Forall x k t) -> do
     (ctx, e) <- check (Local.push (Local.Const x k) ctx) e t
-    ctx <- return $ Local.splitOnConst ctx x
-    -- do we need to check e and t valid in ctx now?
-    -- maybe we need to apply this sub as we are losing information?
-    Right (ctx, e)
-  -- TODO (Abs, Arrow)
+    case Local.splitOnConst ctx x of
+      Nothing -> Left $ "Could not find in ctx: " ++ x
+      Just ctx -> do
+        -- do we need to check e is valid in ctx now?
+        -- maybe we need to apply this sub as we are losing information?
+        Right (ctx, Output.TypeAbs x k e)
+  (Input.Abs x e, Type.Ap (Type.Ap (Type.Ap Type.Fn tCtx) tArg) tRet) -> do
+    (ctx, e) <- check (Local.push (Local.Val x tArg) ctx) e tRet
+    case Local.splitOnVal ctx x of
+      Nothing -> Left $ "Could not find in ctx: " ++ x
+      Just ctx -> do
+        -- TODO find free (vals) in e
+        -- order based on position in ctx
+        -- create a ctx type from this
+        -- check closure types
+
+        -- again, probably need to check e & substitute
+        error "TODO abs check"
   (e, t) -> do
     (ctx, e, t2) <- infer ctx e
     (ctx, e, t2) <- return $ applyTypeArgs ctx e t2
