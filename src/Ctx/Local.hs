@@ -51,15 +51,19 @@ lookupVal ctx x = go (parts ctx)
       Val y t : _ | x == y -> Just t
       _ : ctx -> go ctx
 
-apply :: Ctx -> Type.Type -> Type.Type
+apply :: Ctx -> Type.Type -> Maybe Type.Type
 apply ctx t = case t of
   Type.Var v -> case lookupVar ctx v of
-    Just (Solved t) -> t
-    _ -> Type.Var v
-  Type.Const x -> Type.Const x
-  Type.Fn -> Type.Fn
-  Type.Ap t t2 -> Type.Ap (apply ctx t) (apply ctx t2)
-  Type.Forall x k t -> Type.Forall x k (apply ctx t)
+    Just (Solved t) -> Just t
+    Just (Unsolved _) -> Just (Type.Var v)
+    Nothing -> Nothing
+  Type.Const x -> Just (Type.Const x)
+  Type.Fn -> Just Type.Fn
+  Type.Ap t t2 -> do
+    t <- apply ctx t
+    t2 <- apply ctx t2
+    Just $ Type.Ap t t2
+  Type.Forall x k t -> Type.Forall x k <$> apply ctx t
 
 varIndex :: Ctx -> Type.Var -> Maybe Word
 varIndex ctx v = go (parts ctx) 0

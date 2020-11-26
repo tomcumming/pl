@@ -19,7 +19,8 @@ infer ctx e = case e of
   Input.Ap eFn eArg -> do
     (ctx, eFn, tFn) <- infer ctx eFn
     (ctx, eFn, tFn) <- return $ applyTypeArgs ctx eFn tFn
-    case Local.apply ctx tFn of
+    tFn <- Check.Ctx.apply ctx tFn
+    case tFn of
       Type.Ap (Type.Ap (Type.Ap Type.Fn _) tArg) tRet -> do
         (ctx, eArg) <- check ctx eArg tArg
         Right (ctx, Output.Ap eFn eArg, tRet)
@@ -34,24 +35,23 @@ check ::
 check ctx e t = case (e, t) of
   (e, Type.Forall x k t) -> do
     (ctx, e) <- check (Local.push (Local.Const x k) ctx) e t
+    e <- Check.Ctx.applyToExpr ctx e
     case Local.splitOnConst ctx x of
       Nothing -> Left $ "Could not find in ctx: " ++ x
       Just ctx -> do
         -- do we need to check e is valid in ctx now?
-        -- maybe we need to apply this sub as we are losing information?
         Right (ctx, Output.TypeAbs x k e)
   (Input.Abs x e, Type.Ap (Type.Ap (Type.Ap Type.Fn tCtx) tArg) tRet) -> do
     (ctx, e) <- check (Local.push (Local.Val x tArg) ctx) e tRet
+    e <- Check.Ctx.applyToExpr ctx e
     case Local.splitOnVal ctx x of
       Nothing -> Left $ "Could not find in ctx: " ++ x
       Just ctx -> do
-        -- TODO find free (vals) in e
-        -- order based on position in ctx
-        -- create a ctx type from this
-        -- check closure types
-
-        -- again, probably need to check e & substitute
-        error "TODO abs check"
+        cNames <- Check.Ctx.orderUsed ctx (Output.usedVars e)
+        cs <- Check.Ctx.closureTypes ctx cNames
+        ctx <- unify ctx tCtx cs
+        -- check if e valid in ctx?
+        Right (ctx, e)
   (e, t) -> do
     (ctx, e, t2) <- infer ctx e
     (ctx, e, t2) <- return $ applyTypeArgs ctx e t2

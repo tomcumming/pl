@@ -9,8 +9,8 @@ import qualified Type
 
 unify :: Local.Ctx -> Type.Type -> Type.Type -> Either Error Local.Ctx
 unify ctx t1 t2 = do
-  t1 <- return $ Local.apply ctx t1
-  t2 <- return $ Local.apply ctx t2
+  t1 <- Check.Ctx.apply ctx t1
+  t2 <- Check.Ctx.apply ctx t2
   case (t1, t2) of
     -- unify var
     (Type.Var v1, Type.Var v2) -> unifyVars ctx v1 v2
@@ -64,7 +64,7 @@ solve ctx v t = do
 
   when (vk /= tk) $ Left $ unwords ["Wrong kinds", show v, show vk, show t, show tk]
 
-  -- TODO: check that v not in t
+  -- TODO: check that v not in t?
 
   go [] (Local.parts ctx)
   where
