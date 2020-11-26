@@ -1,6 +1,7 @@
 module Check.Ctx where
 
 import Check.Error (Error)
+import qualified Ctx.Global as Global
 import qualified Ctx.Local as Local
 import qualified Data.Set as Set
 import qualified Expr.Output as Output
@@ -13,15 +14,19 @@ lookupVar ctx v = case Local.lookupVar ctx v of
   Nothing -> Left $ "Can't find type var: " ++ show v
   Just tv -> Right tv
 
-lookupConst :: Local.Ctx -> Id -> Either Error Kind.Kind
-lookupConst ctx x = case Local.lookupConst ctx x of
-  Nothing -> Left $ "Can't find var: " ++ x
-  Just k -> Right k
+lookupConst :: Global.Ctx -> Local.Ctx -> Id -> Either Error Kind.Kind
+lookupConst gctx ctx x =
+  case (Local.lookupConst ctx x, Global.lookupConst gctx x) of
+    (Just k, _) -> Right k -- what type class is this?
+    (_, Just k) -> Right k
+    (Nothing, Nothing) -> Left $ "Can't find var: " ++ x
 
-lookupVal :: Local.Ctx -> Id -> Either Error Type.Type
-lookupVal ctx x = case Local.lookupVal ctx x of
-  Nothing -> Left $ "Can't find var: " ++ x
-  Just t -> Right t
+lookupVal :: Global.Ctx -> Local.Ctx -> Id -> Either Error Type.Type
+lookupVal gctx ctx x =
+  case (Local.lookupVal ctx x, Global.lookupVal gctx x) of
+    (Just k, _) -> Right k -- what type class is this?
+    (_, Just k) -> Right k
+    (Nothing, Nothing) -> Left $ "Can't find var: " ++ x
 
 orderVars :: Local.Ctx -> Type.Var -> Type.Var -> Either Error (Type.Var, Type.Var)
 orderVars ctx v u = case (Local.varIndex ctx v, Local.varIndex ctx u) of
@@ -35,14 +40,16 @@ checkMono ctx t = do
     then return ()
     else Left $ "Expected a monotype, got: " ++ show t
 
-orderUsed :: Local.Ctx -> Set.Set Id -> Either Error [Id]
-orderUsed ctx xs = go (Local.parts ctx) xs
+orderUsed :: Global.Ctx -> Local.Ctx -> Set.Set Id -> Either Error [Id]
+orderUsed gctx ctx xs = go (Local.parts ctx) xs
   where
     go ctx xs =
       if Set.null xs
         then Right []
         else case ctx of
-          [] -> Left $ "Vars not in ctx: " ++ show xs
+          [] -> case mapM (Global.lookupVal gctx) (Set.toList xs) of
+            Nothing -> Left $ "Vars not in ctx: " ++ show xs
+            Just _ -> Right []
           Local.Val x _ : ctx | Set.member x xs -> do
             xs <- go ctx (Set.delete x xs)
             Right (x : xs)
@@ -59,10 +66,11 @@ closureTypes ctx xs = closureType <$> go ctx xs
   where
     go ctx xs = case xs of
       [] -> Right []
-      (x : xs) -> do
-        t <- lookupVal ctx x
-        ts <- go ctx xs
-        Right (t : ts)
+      (x : xs) -> case Local.lookupVal ctx x of
+        Nothing -> Left $ "Expected a local: " ++ x
+        Just t -> do
+          ts <- go ctx xs
+          Right (t : ts)
 
 apply :: Local.Ctx -> Type.Type -> Either Error Type.Type
 apply ctx t = case Local.apply ctx t of

@@ -1,6 +1,7 @@
 module StdLib (ctx) where
 
-import qualified Ctx.Local as Local
+import qualified Ctx.Global as Global
+import qualified Data.Map as Map
 import qualified Kind
 import qualified Type
 
@@ -15,18 +16,21 @@ justType =
 noneType :: Type.Type
 noneType = Type.Forall "a" Kind.Star (Type.Ap (Type.Const "Maybe") (Type.Const "a"))
 
-ctx :: Local.Ctx
+ctx :: Global.Ctx
 ctx =
-  Local.Ctx
-    { Local.freshVar = 0,
-      Local.parts =
-        [ Local.Val "Unit" $ Type.Const "Unit",
-          Local.Val "Just" justType,
-          Local.Val "None" noneType,
-          Local.Const "Unit" Kind.Star,
-          Local.Const "Bool" Kind.Star,
-          Local.Const "Pair" $ Kind.Arrow Kind.Star (Kind.Arrow Kind.Star Kind.Star),
-          Local.Const "Either" $ Kind.Arrow Kind.Star (Kind.Arrow Kind.Star Kind.Star),
-          Local.Const "Maybe" $ Kind.Arrow Kind.Star Kind.Star
-        ]
+  Global.Ctx
+    { Global.vals =
+        Map.fromList
+          [ ("Unit", Type.Const "Unit"),
+            ("Just", justType),
+            ("None", noneType)
+          ],
+      Global.types =
+        Map.fromList
+          [ ("Unit", Kind.Star),
+            ("Bool", Kind.Star),
+            ("Pair", Kind.Arrow Kind.Star (Kind.Arrow Kind.Star Kind.Star)),
+            ("Either", Kind.Arrow Kind.Star (Kind.Arrow Kind.Star Kind.Star)),
+            ("Maybe", Kind.Arrow Kind.Star Kind.Star)
+          ]
     }
