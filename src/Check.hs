@@ -5,6 +5,7 @@ import Check.Error (Error)
 import qualified Ctx.Local as Local
 import qualified Expr.Input as Input
 import qualified Expr.Output as Output
+import qualified Kind
 import qualified Type
 import Unify (unify)
 
@@ -26,6 +27,20 @@ infer ctx e = case e of
         Right (ctx, Output.Ap eFn eArg, tRet)
       Type.Var c -> error "TODO infer application for var"
       t -> Left $ show t ++ " is not a function"
+  Input.Abs x e -> do
+    (ctx, vArg) <- return $ Local.fresh ctx
+    ctx <- return $ Local.push (Local.TypeVar vArg (Local.Unsolved Kind.Star)) ctx
+    ctx <- return $ Local.push (Local.Val x (Type.Var vArg)) ctx
+    (ctx, e, tRet) <- infer ctx e
+    e <- Check.Ctx.applyToExpr ctx e
+    tRet <- Check.Ctx.apply ctx tRet
+    case Local.splitOnVal ctx x of
+      Nothing -> Left $ "Expected to find in ctx: " ++ x
+      Just ctx -> do
+        cNames <- Check.Ctx.orderUsed ctx (Output.usedVars e)
+        cs <- Check.Ctx.closureTypes ctx cNames
+        -- check if e valid in ctx?
+        Right (ctx, e, Type.fn cs (Type.Var vArg) tRet)
 
 check ::
   Local.Ctx ->
@@ -44,6 +59,7 @@ check ctx e t = case (e, t) of
   (Input.Abs x e, Type.Ap (Type.Ap (Type.Ap Type.Fn tCtx) tArg) tRet) -> do
     (ctx, e) <- check (Local.push (Local.Val x tArg) ctx) e tRet
     e <- Check.Ctx.applyToExpr ctx e
+    tCtx <- Check.Ctx.apply ctx tCtx
     case Local.splitOnVal ctx x of
       Nothing -> Left $ "Could not find in ctx: " ++ x
       Just ctx -> do
