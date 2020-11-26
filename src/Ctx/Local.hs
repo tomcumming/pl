@@ -21,6 +21,9 @@ data CtxPart
   | Val Id Type.Type
   deriving (Show) -- might need a marker ?
 
+empty :: Ctx
+empty = Ctx {freshVar = 0, parts = []}
+
 fresh :: Ctx -> (Ctx, Type.Var)
 fresh ctx = (ctx {freshVar = succ (freshVar ctx)}, freshVar ctx)
 

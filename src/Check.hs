@@ -4,6 +4,7 @@ import qualified Check.Ctx
 import Check.Error (Error)
 import qualified Ctx.Global as Global
 import qualified Ctx.Local as Local
+import qualified Data.Set as Set
 import qualified Expr.Input as Input
 import qualified Expr.Output as Output
 import qualified Kind
@@ -39,10 +40,10 @@ infer gctx ctx e = case e of
     case Local.splitOnVal ctx x of
       Nothing -> Left $ "Expected to find in ctx: " ++ x
       Just ctx -> do
-        cNames <- Check.Ctx.orderUsed gctx ctx (Output.usedVars e)
+        cNames <- Check.Ctx.orderUsed gctx ctx (Set.delete x (Output.usedVars e))
         cs <- Check.Ctx.closureTypes ctx cNames
         -- check if e valid in ctx?
-        Right (ctx, e, Type.fn cs (Type.Var vArg) tRet)
+        Right (ctx, Output.Abs x (Type.Var vArg) e cNames, Type.fn cs (Type.Var vArg) tRet)
 
 check ::
   Global.Ctx ->
@@ -63,14 +64,15 @@ check gctx ctx e t = case (e, t) of
     (ctx, e) <- check gctx (Local.push (Local.Val x tArg) ctx) e tRet
     e <- Check.Ctx.applyToExpr ctx e
     tCtx <- Check.Ctx.apply ctx tCtx
+    tArg <- Check.Ctx.apply ctx tCtx
     case Local.splitOnVal ctx x of
       Nothing -> Left $ "Could not find in ctx: " ++ x
       Just ctx -> do
-        cNames <- Check.Ctx.orderUsed gctx ctx (Output.usedVars e)
+        cNames <- Check.Ctx.orderUsed gctx ctx (Set.delete x (Output.usedVars e))
         cs <- Check.Ctx.closureTypes ctx cNames
         ctx <- unify gctx ctx tCtx cs
         -- check if e valid in ctx?
-        Right (ctx, e)
+        Right (ctx, Output.Abs x tArg e cNames)
   (e, t) -> do
     (ctx, e, t2) <- infer gctx ctx e
     (ctx, e, t2) <- return $ applyTypeArgs ctx e t2
