@@ -6,6 +6,8 @@ import Check.Kind (kind)
 import Control.Monad (when)
 import qualified Ctx.Global as Global
 import qualified Ctx.Local as Local
+import qualified Kind
+import Lib (Id)
 import qualified Type
 
 unify :: Global.Ctx -> Local.Ctx -> Type.Type -> Type.Type -> Either Error Local.Ctx
@@ -28,7 +30,7 @@ unify gctx ctx t1 t2 = do
       ctx <- unify gctx ctx t1f t2f
       unify gctx ctx t1a t2a
     -- Foralls
-    (Type.Forall x1 k1 t1, Type.Forall x2 k2 t2) -> unifyForalls x1 k1 t1 x2 k2 t2
+    (Type.Forall x1 k1 t1, Type.Forall x2 k2 t2) -> unifyForalls gctx ctx (x1, k1, t1) (x2, k2, t2)
     --
     (t1, t2) -> Left $ unwords ["Cant unify", show t1, show t2]
 
@@ -56,7 +58,20 @@ unifyAp gctx ctx v tf ta = do
   ctx <- unify gctx ctx (Type.Var vf) tf
   unify gctx ctx (Type.Var va) ta
 
-unifyForalls = undefined
+unifyForalls ::
+  Global.Ctx ->
+  Local.Ctx ->
+  (Id, Kind.Kind, Type.Type) ->
+  (Id, Kind.Kind, Type.Type) ->
+  Either Error Local.Ctx
+unifyForalls gctx ctx (x1, k1, t1) (x2, k2, t2) =
+  if k1 /= k2
+    then Left $ unwords ["Can't unify forall, wrong kinds", show k1, show k2]
+    else do
+      let x3 = head $ filter (\x -> Type.safeFreshForallName x (Type.Forall x2 k2 t2)) (freshForallNames x1)
+      t1 <- return $ Type.subsConst x1 t1 (Type.Const x3)
+      t2 <- return $ Type.subsConst x2 t2 (Type.Const x3)
+      unify gctx ctx t1 t2
 
 solve :: Global.Ctx -> Local.Ctx -> Type.Var -> Type.Type -> Either Error Local.Ctx
 solve gctx ctx v t = do
@@ -79,3 +94,6 @@ solve gctx ctx v t = do
           let parts = reverse ctxHead ++ Local.TypeVar v (Local.Solved t) : ctxTail
           Right $ ctx {Local.parts = parts}
       p : ctxTail -> go (p : ctxHead) ctxTail
+
+freshForallNames :: Id -> [Id]
+freshForallNames x = x : [x ++ show n | n <- [2 ..]]

@@ -31,3 +31,11 @@ subsConst x t t2 = case t of
   Fn -> Fn
   Ap tf ta -> Ap (subsConst x tf t2) (subsConst x ta t2)
   Forall y k t -> if x == y then Forall y k t else Forall y k (subsConst x t t2)
+
+safeFreshForallName :: Id -> Type -> Bool
+safeFreshForallName x t = case t of
+  Var _ -> True
+  Const y -> x /= y
+  Fn -> True
+  Ap t t2 -> safeFreshForallName x t && safeFreshForallName x t2
+  Forall y _ t -> x /= y && safeFreshForallName x t
