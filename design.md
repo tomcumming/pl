@@ -8,6 +8,10 @@ data Either a b { Left a; Right b }
 data Bool { True; False }
 ```
 
+```
+Pair a b    =   (a, b)
+```
+
 ## Pattern matching
 
 ```
@@ -36,12 +40,12 @@ class Drop a {
 ```
 
 ```
-use_twice = \(x: String) -> Pair x x;
+use_twice = \(x: String) -> (x, x)
 ```
 Gets rewritten as:
 ```
 use_twice = \(x: String) -> match implicitCopy x {
-    Pair x y -> Pair x y
+    (x, y) -> (x, y)
 }
 ```
 
@@ -51,11 +55,11 @@ use_twice_works = \(x: String) -> copy x;
 
 ```
 class Copy a {
-    copy : a -> Pair a a;
+    copy : a -> (a, a);
 }
 
 class ImplicitCopy a <= Copy a {
-    implicitCopy : a -> Pair a a;
+    implicitCopy : a -> (a, a);
 }
 ```
 
@@ -65,7 +69,7 @@ Functions have to carry their closure in the type signature! `Fn a b c` describe
 
 ```
 \x -> x : forall a. Fn () a a
-\(x: U32) -> \(y: U32) -> add x y : Fn () U32 (Fn U32 U32 U32)
+\(x: Word) -> \(y: Word) -> add x y : Fn () Word (Fn Word Word Word)
 
 impl Copy (Fn a b c) <= Copy a { /* ... */ }
 impl Drop (Fn a b c) <= Drop a { /* ... */ }
@@ -80,30 +84,38 @@ a -> b -> c -> d    =   Fn () a (Fn a b (Fn (a, b) c d))
 ## Sharing
 
 ```
-'Hello World!' : Static String
-```
-
-```
 class Shared (s : * -> *) { /* ... */ }
 
-impl Shared Static { /* ... */ }
-impl Shared Rc { /* ... */ }
+impl Shared RC { /* ... */ }
+impl Shared ARC { /* ... */ }
 ```
 
 ## Bounded Values
 
+```
+'Hello World!' : Bound Static String
+```
+
 Use the `ST` monad trick to create regions:
 
 ```
-bound : a -> (forall 'x. Bound 'x a -> b) -> Pair a b
+bound : a -> (forall 'r. (Cast Static 'r, Bound 'r a) -> b) -> (a, b)
 
-impl Shared (Bound 'x)
-impl Copy (Bound 'x a) { /* ... */ }
-impl Drop (Bound 'x a) { /* ... */ }
+impl Shared (Bound 'r)
+impl Copy (Bound 'r a) { /* ... */ }
+impl Drop (Bound 'r a) { /* ... */ }
 ```
 
 ```
 get : Shared s => s (Vec a) -> USize -> Maybe (s a)
+```
+
+```
+subBound
+    : Cast _ 'r
+    -> a
+    -> (forall 's. (Cast 'r 's, Bound 's a) -> b)
+    -> (a, b)
 ```
 
 ## Casting
@@ -113,21 +125,12 @@ cast : a -> Cast a b -> b
 
 castVec : Cast a b -> Cast (Vec a) (Vec b)
 castBound : Cast x y -> Cast (Bound 'a x) (Bound 'a y)
-
-Region : * -> *
-region : (forall 'r. Region 'r -> a) -> a
-
-reBound : Region 'r -> Cast (Bound 'a x) (Bound 'r x)
-```
-So two compare two `Vec`s where the items have different bounds:
-```
-myVec : Vec (Bound 'a U32)
-otherVec : Vec (Bound 'b U32)
-
-region (\r -> cast myVec (castVec (reBound r)) == cast otherVec (castVec (reBound r)))
+limitBound : Cast 'r 's -> Cast (Bound 'r a) (Bound 's y)
 ```
 
-Might be able to do this with type classes and higher rank constraints ?
+_TODO: example casting something awkward_
+
+Might be able to automate this with type classes and higher rank constraints ?
 
 ## IO
 
@@ -143,6 +146,10 @@ readLine : w -> (w, String)
 ```
 Maybe we can still have something like the `IO` monad if `IO a` does not implement drop nor copy?
 ```
+type IO a = {
+    IO(Fn () w (w, a)) -- needs to be private?
+}
+
 bind : IO a -> Fn c a (IO b) -> IO b
 ```
 
