@@ -19,7 +19,7 @@ noneType = Type.Forall "a" Kind.Star (Type.Ap (Type.Const "Maybe") (Type.Const "
 ctx :: Global.Ctx
 ctx =
   Global.Ctx
-    { Global.vals =
+    { Global.names =
         Map.fromList
           [ ("Unit", Type.Const "Unit"),
             ("Just", justType),

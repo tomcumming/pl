@@ -13,11 +13,8 @@ kind ::
   Type.Type ->
   Either Error Kind.Kind
 kind gctx ctx t = case t of
-  Type.Var v -> do
-    tv <- Check.Ctx.lookupVar ctx v
-    case tv of
-      Local.Unsolved k -> Right k
-      Local.Solved t -> kind gctx ctx t
+  Type.Var v -> case Local.lookupVar ctx v of
+    (_, k, _) -> Right k
   Type.Const x -> Check.Ctx.lookupConst gctx ctx x
   Type.Fn -> Right Kind.fnKind
   Type.Ap c a -> do
