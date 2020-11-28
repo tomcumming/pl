@@ -1,4 +1,4 @@
-module Unify where
+module Unify (unify) where
 
 import qualified Check.Ctx
 import Check.Error (Error)
@@ -76,19 +76,14 @@ unifyForalls gctx ctx (x1, k1, t1) (x2, k2, t2) =
 solve :: Global.Ctx -> Local.Ctx -> Type.Var -> Type.Type -> Either Error Local.Ctx
 solve gctx ctx v t = do
   tk <- kind gctx ctx t
-
   case Local.lookupVar ctx v of
     (_, _, Just t2) -> Left $ unwords ["Already solved:", show t2, show t]
-    _ | not (typeAtom t) -> Left $ unwords ["Can only solve simple types", show v, show t]
+    _ | not (Type.mono t) -> Left $ unwords ["Can't solve as polymorphic'", show v, show t]
     (_, k, Nothing) | k /= tk -> Left $ unwords ["Wrong kinds", show v, show k, show t, show tk]
-    _ -> Right $ ctx {Local.solvedVars = Map.insert v t (Local.solvedVars ctx)}
-
-typeAtom :: Type.Type -> Bool
-typeAtom t = case t of
-  Type.Var _ -> True
-  Type.Const _ -> True
-  Type.Fn -> True
-  _ -> False
+    _ -> do
+      ctx <- return $ ctx {Local.solvedVars = Map.insert v t (Local.solvedVars ctx)}
+      ctx <- return $ ctx {Local.solvedVars = Map.map (Local.apply ctx) (Local.solvedVars ctx)}
+      Right ctx
 
 freshForallNames :: Id -> [Id]
 freshForallNames x = x : [x ++ show n | n <- [2 ..]]

@@ -27,7 +27,12 @@ infer gctx ctx e = case e of
       Type.Ap (Type.Ap (Type.Ap Type.Fn _) tArg) tRet -> do
         (ctx, eArg) <- check gctx ctx eArg tArg
         Right (ctx, Output.Ap eFn eArg, tRet)
-      Type.Var _ -> error "TODO Do we ever hit this?"
+      Type.Var vFn -> do
+        (ctx, eArg, tArg) <- infer gctx ctx eArg
+        (ctx, vCls) <- return $ Local.addVar ctx Kind.Star
+        (ctx, vRet) <- return $ Local.addVar ctx Kind.Star
+        ctx <- unify gctx ctx (Type.Var vFn) (Type.fn (Type.Var vCls) tArg (Type.Var vRet))
+        return (ctx, Output.Ap eFn eArg, Type.Var vRet)
       t -> Left $ show t ++ " is not a function"
   Input.Abs x e -> do
     (ctx, vArg) <- return $ Local.addVar ctx Kind.Star
