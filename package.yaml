@@ -7,3 +7,11 @@ dependencies:
 
 library:
   source-dirs: src
+
+tests:
+  spec:
+    main: Spec.hs
+    source-dirs: test
+    dependencies:
+      - proglang
+      - hspec >= 2.7 && < 3

@@ -22,6 +22,8 @@ ctx =
     { Global.names =
         Map.fromList
           [ ("Unit", Type.Const "Unit"),
+            ("True", Type.Const "Bool"),
+            ("False", Type.Const "Bool"),
             ("Just", justType),
             ("None", noneType)
           ],

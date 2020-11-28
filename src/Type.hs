@@ -12,7 +12,7 @@ data Type
   | Fn
   | Ap Type Type
   | Forall Id Kind Type
-  deriving (Show)
+  deriving (Show, Eq)
 
 fn :: Type -> Type -> Type -> Type
 fn ctx arg = Type.Ap (Type.Ap (Type.Ap Type.Fn ctx) arg)
