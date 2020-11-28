@@ -3,7 +3,6 @@ module Check.ForallEscapeSpec (spec) where
 import Check (infer)
 import qualified Ctx.Global as Global
 import qualified Ctx.Local as Local
-import Data.Either (isRight)
 import qualified Data.Map as Map
 import qualified Expr.Input as Input
 import qualified Kind
@@ -25,7 +24,7 @@ spec = describe "Test naive forall escape" $ do
       Right (ctx, _, t) -> Local.apply ctx t `shouldBe` Type.Const "Bool"
 
   it "Catches id escape" $ do
-    let result = infer ctx Local.empty $ Input.Ap (Input.Var "escape") (Input.Abs "x" (Input.Var "True"))
+    let result = infer ctx Local.empty $ Input.Ap (Input.Var "escape") (Input.Abs "x" (Input.Var "x"))
     case result of
       Left e -> return ()
       Right (ctx, _, t) -> expectationFailure $ "Inferred type: " ++ show (Local.apply ctx t)

@@ -25,6 +25,14 @@ free t = case t of
   Ap t t2 -> Set.union (free t) (free t2)
   Forall _ _ t -> free t
 
+freeConst :: Type -> Set.Set Id
+freeConst t = case t of
+  Var _ -> Set.empty
+  Const x -> Set.singleton x
+  Fn -> Set.empty
+  Ap t t2 -> Set.union (freeConst t) (freeConst t2)
+  Forall y _ t -> Set.delete y (freeConst t)
+
 mono :: Type -> Bool
 mono t = case t of
   Var _ -> True
